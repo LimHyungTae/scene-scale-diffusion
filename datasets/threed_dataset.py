@@ -3,6 +3,12 @@ import pickle
 
 import numpy as np
 import yaml
+from threed_front.room_datasets.room_graph_dataset import (
+    RoomClassEncoder,
+    RoomConnectionEncoder,
+    RoomPositionEncoder,
+    RoomShapeEncoder,
+)
 from torch.utils.data import Dataset
 
 
@@ -48,9 +54,20 @@ class ThreeDFrontDataset(Dataset):
 
         pickled_dataset_path = os.path.join(directory, "room_graph_dataset.pkl")
 
-        data = pickle.load(open(pickled_dataset_path, "rb"))
-        self.raw_data = data[f"{split}_dataset"]
-        self.num_data = len(self.raw_data)
+        raw_data = pickle.load(open(pickled_dataset_path, "rb"))
+        raw_dataset = raw_data[f"{split}_dataset"]
+        self.num_data = len(raw_data)
+        # [N x C] one-hot encoding of size len(dataset.class_labels)
+        self.class_labels_dataset = RoomClassEncoder(raw_dataset)
+
+        # [N x 3] 3D positions of rooms centered at scene center
+        self.positions_dataset = RoomPositionEncoder(raw_dataset)
+
+        # [N x F] latent shape features or flattened pc of rooms
+        self.shapes_dataset = RoomShapeEncoder(raw_dataset, encoder_net=None)
+
+        # [N x N] upper triangular vector of room connectivity as adjacency matrix
+        self.edges_dataset = RoomConnectionEncoder(raw_dataset)
 
         # For easy visualization to 256x256x3 image
         self._grid_size = [256, 256, 1]
