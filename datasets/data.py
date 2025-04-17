@@ -5,8 +5,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from datasets.carla_dataset import *
 
-dataset_choices = {'carla', 'kitti'}
-
 
 def get_data_id(args):
     return '{}'.format(args.dataset)
@@ -21,7 +19,6 @@ def get_class_weights(freq):
     return weights
 
 def get_data(args):
-    assert args.dataset in dataset_choices
     if args.dataset == 'carla':
         train_dir = os.path.join(args.dataset_dir, "Train")
         val_dir   = os.path.join(args.dataset_dir, "Val")
