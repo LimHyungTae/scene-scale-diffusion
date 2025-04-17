@@ -1,0 +1,120 @@
+color_map :
+  0 : [219, 94, 86]       # auditorium
+  1 : [219, 141, 86]      # balcony
+  2 : [219, 188, 86]      # bathroom
+  3 : [203, 219, 86]      # bedroom
+  4 : [157, 219, 86]      # cloak_room
+  5 : [110, 219, 86]      # courtyard
+  6 : [86, 219, 110]      # dining_room
+  7 : [86, 219, 157]      # hallway
+  8 : [86, 219, 204]      # kitchen
+  9 : [86, 188, 219]      # laundry_room
+  10 : [86, 141, 219]     # library
+  11 : [86, 94, 219]      # living_dining_room
+  12 : [126, 86, 219]     # living_room
+  13 : [173, 86, 219]     # lounge
+  14 : [219, 86, 219]     # other_room
+  15 : [219, 86, 172]     # stairwell
+  16 : [219, 86, 125]     # storage_room
+  17 : [255, 255, 255]    # Empty
+
+
+learning_map :
+  0 : 0
+  1 : 1
+  2 : 2
+  3 : 3
+  4 : 4
+  5 : 5
+  6 : 6
+  7 : 6
+  8 : 8
+  9 : 9
+  10: 10
+  11 : 11
+  12 : 12
+  13 : 13
+  14 : 14
+  15 : 15
+  16 : 16
+  17 : 17
+
+remap_color_map:
+  0 : [219, 94, 86]       # auditorium
+  1 : [219, 141, 86]      # balcony
+  2 : [219, 188, 86]      # bathroom
+  3 : [203, 219, 86]      # bedroom
+  4 : [157, 219, 86]      # cloak_room
+  5 : [110, 219, 86]      # courtyard
+  6 : [86, 219, 110]      # dining_room
+  7 : [86, 219, 157]      # hallway
+  8 : [86, 219, 204]      # kitchen
+  9 : [86, 188, 219]      # laundry_room
+  10 : [86, 141, 219]     # library
+  11 : [86, 94, 219]      # living_dining_room
+  12 : [126, 86, 219]     # living_room
+  13 : [173, 86, 219]     # lounge
+  14 : [219, 86, 219]     # other_room
+  15 : [219, 86, 172]     # stairwell
+  16 : [219, 86, 125]     # storage_room
+  17 : [255, 255, 255]    # Empty
+
+label_to_names:
+  0 :  auditorium
+  1 :  balcony
+  2 :  bathroom
+  3 :  bedroom
+  4 :  cloak_room
+  5 :  courtyard
+  6 :  dining_room
+  7 :  hallway
+  8 :  kitchen
+  9 :  laundry_room
+  10 : library
+  11 : living_dining_room
+  12 : living_room
+  13 : lounge
+  14 : other_room
+  15 : stairwell
+  16 : storage_room
+  17 : Empty
+
+content :
+  0 : 4166593275
+  1 : 42309744
+  2 : 8550180
+  3 : 478193
+  4 : 905663
+  5 : 2801091
+  6 : 6452733
+  7 : 229316930
+  8 : 112863867
+  9 : 29816894
+  10: 13839655
+  11 : 15581458
+  12 : 221821
+  13 : 111111
+  14 : 7931550
+  15 : 467989
+  16 : 3354
+  17 : 9201043
+
+remap_content :
+  0 : 4.16659328e+09
+  1 : 4.23097440e+07
+  2 : 3.33326810e+07
+  3 : 8.17951900e+06
+  4 : 9.05663000e+05
+  5 : 3.08392300e+06
+  6 : 2.35769663e+08
+  7 : 8.76012450e+07
+  8 : 1.12863867e+08
+  9 : 2.98168940e+07
+  10 : 1.38396550e+07
+  11 : 8.76012450e+07
+  12 : 1.12863867e+08
+  13 : 2.98168940e+07
+  14 : 1.38396550e+07
+  15 : 1.38396550e+07
+  16 : 1.38396550e+07
+  17 : 1.38396550e+07

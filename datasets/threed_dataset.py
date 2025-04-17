@@ -26,11 +26,11 @@ class ThreeDFrontDataset(Dataset):
             directory: directory to the dataset
         """
         base_dir = os.path.dirname(__file__)
-        config_file = os.path.join(base_dir, "carla.yaml")
-        carla_config = yaml.safe_load(open(config_file, "r"))
-        LABELS_REMAP = carla_config["learning_map"]
-        REMAP_FREQUENCIES = carla_config["remap_content"]
-        FREQUENCIES = carla_config["content"]
+        config_file = os.path.join(base_dir, "3dfront.yaml")
+        threed_config = yaml.safe_load(open(config_file, "r"))
+        LABELS_REMAP = threed_config["learning_map"]
+        REMAP_FREQUENCIES = threed_config["remap_content"]
+        FREQUENCIES = threed_config["content"]
 
         self.LABELS_REMAP = np.asarray(list(LABELS_REMAP.values()))
         self.frequencies_cartesian = np.asarray(list(FREQUENCIES.values()))
