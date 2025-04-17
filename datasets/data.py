@@ -109,33 +109,28 @@ def get_data(args):
         args.data_shape = [x_dim, y_dim, z_dim]
 
         binary_counts = True
-        remap = True
 
         train_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="train",
             random_flips=True,
-            remap=remap,
             binary_counts=binary_counts,
         )
         val_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="val",
-            remap=remap,
             binary_counts=binary_counts,
         )
         test_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="test",
-            remap=remap,
             binary_counts=binary_counts,
         )
 
         class_frequencies = train_ds.remap_frequencies_cartesian
-        args.num_classes = 11  # same as Carla if remapped
 
         comp_weights = get_class_weights(class_frequencies).to(torch.float32)
-        seg_weights = get_class_weights(class_frequencies[1:]).to(torch.float32)
+        seg_weights = get_class_weights(class_frequencies[:-1]).to(torch.float32)
 
         train_sampler = None
         val_sampler = None
