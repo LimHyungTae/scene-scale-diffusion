@@ -38,7 +38,7 @@ def get_args():
     parser.add_argument('--dist_url', type=str, default='tcp://127.0.0.1:29500', help='url used to set up distributed training')
     
     # Data params
-    parser.add_argument('--dataset', type=str, default='carla', choices='carla')
+    parser.add_argument('--dataset', type=str, default='carla', choices=['carla', '3dfront'])
     parser.add_argument('--dataset_dir', type=str, required=True, help='Path to the dataset directory')
     # Train params
     parser.add_argument('--batch_size', type=int, default=4)
