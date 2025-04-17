@@ -102,7 +102,7 @@ def get_data(args):
             num_workers=args.num_workers,
         )
 
-    if args.dataset == "3dfront":
+    elif args.dataset == "3dfront":
         x_dim = 256
         y_dim = 256
         z_dim = 1
