@@ -97,6 +97,8 @@ def get_data(args):
         )
 
     elif args.dataset == "3dfront":
+        args.num_classes = 18
+
         binary_counts = True
 
         train_ds = ThreeDFrontDataset(
