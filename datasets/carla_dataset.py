@@ -37,6 +37,8 @@ class CarlaDataset(Dataset):
         self.frequencies_cartesian = np.asarray(list(FREQUENCIES.values()))
         self.remap_frequencies_cartesian = np.asarray(list(REMAP_FREQUENCIES.values()))
 
+        self.data_shape = [128, 128, 8]
+
         self.get_gt = get_gt
         self.voxelize_input = voxelize_input
         self.binary_counts = binary_counts

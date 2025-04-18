@@ -28,12 +28,6 @@ def get_data(args):
         val_dir = os.path.join(args.dataset_dir, "Val")
         test_dir = os.path.join(args.dataset_dir, "Test")
 
-        x_dim = 128
-        y_dim = 128
-        z_dim = 8
-        data_shape = [x_dim, y_dim, z_dim]
-        args.data_shape = data_shape
-
         binary_counts = True
         transform_pose = True
         remap = True
@@ -103,11 +97,6 @@ def get_data(args):
         )
 
     elif args.dataset == "3dfront":
-        x_dim = 256
-        y_dim = 256
-        z_dim = 1
-        args.data_shape = [x_dim, y_dim, z_dim]
-
         binary_counts = True
 
         train_ds = ThreeDFrontDataset(
