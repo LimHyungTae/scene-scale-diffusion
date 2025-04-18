@@ -1,27 +1,52 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
-import numpy as np
-import math
-from utils.loss import lovasz_softmax
-from layers.Latent_Level.stage1.model import C_Encoder, C_Decoder
+
+from layers.Latent_Level.stage1.model import C_Decoder, C_Encoder
 from layers.Latent_Level.stage1.vector_quantizer import VectorQuantizer
+
 
 class vqvae(torch.nn.Module):
     def __init__(self, args, multi_criterion) -> None:
         super(vqvae, self).__init__()
         self.args = args
 
+        if args.dataset == "carla":
+            use_height_pooling = True
+        elif args.dataset == "3dfront":
+            use_height_pooling = False
+        else:
+            raise NotImplementedError("Wrong dataset name has been given.")
+
         init_size = args.init_size
         embedding_dim = int(self.args.num_classes)
-        
-        self.VQ = VectorQuantizer(num_embeddings = int(self.args.num_classes)*int(self.args.vq_size), embedding_dim = embedding_dim)
 
-        self.encoder = C_Encoder(args, nclasses=self.args.num_classes, init_size=init_size, l_size=args.l_size, attention=args.l_attention)
-        self.quant_conv = nn.Conv3d(self.args.num_classes, self.args.num_classes, kernel_size=1, stride=1)
+        self.VQ = VectorQuantizer(
+            num_embeddings=int(self.args.num_classes) * int(self.args.vq_size),
+            embedding_dim=embedding_dim,
+        )
 
-        self.decoder = C_Decoder(args, nclasses=self.args.num_classes, init_size=init_size, l_size=args.l_size, attention=args.l_attention)
-        self.post_quant_conv = nn.Conv3d(self.args.num_classes, self.args.num_classes, kernel_size=1, stride=1)
+        self.encoder = C_Encoder(
+            args,
+            nclasses=self.args.num_classes,
+            init_size=init_size,
+            l_size=args.l_size,
+            attention=args.l_attention,
+        )
+        self.quant_conv = nn.Conv3d(
+            self.args.num_classes, self.args.num_classes, kernel_size=1, stride=1
+        )
+
+        self.decoder = C_Decoder(
+            args,
+            nclasses=self.args.num_classes,
+            init_size=init_size,
+            l_size=args.l_size,
+            attention=args.l_attention,
+            use_height_pooling=use_height_pooling,
+        )
+        self.post_quant_conv = nn.Conv3d(
+            self.args.num_classes, self.args.num_classes, kernel_size=1, stride=1
+        )
 
         self.multi_criterion = multi_criterion
 
@@ -29,7 +54,7 @@ class vqvae(torch.nn.Module):
         return self.encoder.device
 
     def encode(self, x):
-        latent = self.encoder(x) 
+        latent = self.encoder(x)
         latent = self.quant_conv(latent)
         return latent
 
@@ -37,8 +62,10 @@ class vqvae(torch.nn.Module):
         quantized_latent, vq_loss, quantized_latent_ind, latents_shape = self.VQ(latent)
         return quantized_latent, vq_loss, quantized_latent_ind, latents_shape
 
-    def coodbook(self,quantized_latent_ind, latents_shape):
-        quantized_latent = self.VQ.codebook_to_embedding(quantized_latent_ind.view(-1,1), latents_shape)
+    def coodbook(self, quantized_latent_ind, latents_shape):
+        quantized_latent = self.VQ.codebook_to_embedding(
+            quantized_latent_ind.view(-1, 1), latents_shape
+        )
         return quantized_latent
 
     def decode(self, quantized_latent):
@@ -47,13 +74,13 @@ class vqvae(torch.nn.Module):
         return recons
 
     def forward(self, x, input_ten):
-        latent = self.encode(x) 
-        quantized_latent, vq_loss, _, _ = self.vector_quantize(latent) 
+        latent = self.encode(x)
+        quantized_latent, vq_loss, _, _ = self.vector_quantize(latent)
         recons = self.decode(quantized_latent)
 
         recons_loss = self.multi_criterion(recons, x)
-        loss = recons_loss + vq_loss 
-        return loss 
+        loss = recons_loss + vq_loss
+        return loss
 
     def sample(self, x):
         latent = self.encode(x)
