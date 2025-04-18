@@ -42,4 +42,4 @@ repos:
       - id: flake8
         exclude: 'python/utils/download_datasets'
         # To avoid conflict between flake and black
-        args: ["--ignore=E501,W503"]
+        args: ["--ignore=E501,W503,E266"]
