@@ -123,13 +123,21 @@ def get_data(args):
         comp_weights = get_class_weights(class_frequencies).to(torch.float32)
         seg_weights = get_class_weights(class_frequencies[:-1]).to(torch.float32)
 
-        train_sampler = None
-        val_sampler = None
+        if args is not None and args.distributed:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                train_ds, shuffle=True
+            )
+            val_sampler = torch.utils.data.distributed.DistributedSampler(
+                val_ds, shuffle=False
+            )
+        else:
+            train_sampler = None
+            val_sampler = None
 
         dataloader = DataLoader(
             train_ds,
             batch_size=args.batch_size,
-            shuffle=True,
+            shuffle=(train_sampler is None),
             sampler=train_sampler,
             collate_fn=train_ds.collate_fn,
             num_workers=args.num_workers,
