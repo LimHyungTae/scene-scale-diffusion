@@ -27,7 +27,7 @@ python3 SSC_train.py --mode l_gen --vq_size 100 --l_size 16162 --init_size 32 --
 --batch_size 16 --num_workers 8 --vqvae_path ./result_vqvae_3dfront/epoch99.tar
 ```
 
-📌[Paper](http://arxiv.org/abs/2301.00527)     
+---
 
 <img src=https://user-images.githubusercontent.com/65997635/210452550-2c7c7c6d-7260-43ce-b4b6-18d3f15fccde.png width="480"
   height="400">
