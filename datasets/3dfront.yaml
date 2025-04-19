@@ -1,0 +1,175 @@
+color_map :
+  0 : [219, 94, 86]       # auditorium
+  1 : [219, 141, 86]      # balcony
+  2 : [219, 188, 86]      # bathroom
+  3 : [203, 219, 86]      # bedroom
+  4 : [157, 219, 86]      # cloak_room
+  5 : [110, 219, 86]      # courtyard
+  6 : [86, 219, 110]      # dining_room
+  7 : [86, 219, 157]      # hallway
+  8 : [86, 219, 204]      # kitchen
+  9 : [86, 188, 219]      # laundry_room
+  10 : [86, 141, 219]     # library
+  11 : [86, 94, 219]      # living_dining_room
+  12 : [126, 86, 219]     # living_room
+  13 : [173, 86, 219]     # lounge
+  14 : [219, 86, 219]     # other_room
+  15 : [219, 86, 172]     # stairwell
+  16 : [219, 86, 125]     # storage_room
+  17 : [255, 255, 255]    # Empty
+
+
+learning_map :
+  0 : 0
+  1 : 1
+  2 : 2
+  3 : 3
+  4 : 4
+  5 : 5
+  6 : 6
+  7 : 6
+  8 : 8
+  9 : 9
+  10: 10
+  11 : 11
+  12 : 12
+  13 : 13
+  14 : 14
+  15 : 15
+  16 : 16
+  17 : 17
+
+remap_color_map:
+  0 : [219, 94, 86]       # auditorium
+  1 : [219, 141, 86]      # balcony
+  2 : [219, 188, 86]      # bathroom
+  3 : [203, 219, 86]      # bedroom
+  4 : [157, 219, 86]      # cloak_room
+  5 : [110, 219, 86]      # courtyard
+  6 : [86, 219, 110]      # dining_room
+  7 : [86, 219, 157]      # hallway
+  8 : [86, 219, 204]      # kitchen
+  9 : [86, 188, 219]      # laundry_room
+  10 : [86, 141, 219]     # library
+  11 : [86, 94, 219]      # living_dining_room
+  12 : [126, 86, 219]     # living_room
+  13 : [173, 86, 219]     # lounge
+  14 : [219, 86, 219]     # other_room
+  15 : [219, 86, 172]     # stairwell
+  16 : [219, 86, 125]     # storage_room
+  17 : [255, 255, 255]    # Empty
+
+label_to_names:
+  0 :  auditorium
+  1 :  balcony
+  2 :  bathroom
+  3 :  bedroom
+  4 :  cloak_room
+  5 :  courtyard
+  6 :  dining_room
+  7 :  hallway
+  8 :  kitchen
+  9 :  laundry_room
+  10 : library
+  11 : living_dining_room
+  12 : living_room
+  13 : lounge
+  14 : other_room
+  15 : stairwell
+  16 : storage_room
+  17 : Empty
+
+# Only counts the # in the train dataset using the below code:
+#
+# voxel_class_counts = np.zeros(num_classes, dtype=np.int64)
+#     for batch in tqdm(train_loader, desc="Counting"):
+#         voxel_input, labels, counts = batch
+#         for label in labels:
+#             label = label.flatten()
+#             bincount = np.bincount(label, minlength=num_classes)
+#             voxel_class_counts[:len(bincount)] += bincount
+
+#     print("Raw voxel counts per class:")
+#     for i, count in enumerate(voxel_class_counts):
+#         print(f"  Class {i}: {count}")
+#
+content :
+  0: 7182
+  1: 1764021
+  2: 2189763
+  3: 10687068
+  4: 170732
+  5: 19891
+  6: 681367
+  7: 908078
+  8: 2407357
+  9: 51138
+  10: 905752
+  11: 9406080
+  12: 2780097
+  13: 36195
+  14: 563143
+  15: 36976
+  16: 66302
+  17: 201413450
+
+remap_content :
+  0: 7182
+  1: 1764021
+  2: 2189763
+  3: 10687068
+  4: 170732
+  5: 19891
+  6: 681367
+  7: 908078
+  8: 2407357
+  9: 51138
+  10: 905752
+  11: 9406080
+  12: 2780097
+  13: 36195
+  14: 563143
+  15: 36976
+  16: 66302
+  17: 201413450
+
+
+# FYI: `content` of eval loader:
+# 0: 624
+# 1: 118417
+# 2: 160811
+# 3: 781379
+# 4: 8467
+# 5: 2479
+# 6: 58854
+# 7: 62936
+# 8: 190494
+# 9: 5428
+# 10: 61907
+# 11: 657299
+# 12: 213696
+# 13: 6847
+# 14: 40823
+# 15: 8803
+# 16: 10591
+# 17: 14387361
+
+# FYI: `content` of test loader:
+# 0: 891
+# 1: 505163
+# 2: 641785
+# 3: 3213806
+# 4: 58773
+# 5: 3788
+# 6: 201341
+# 7: 251282
+# 8: 689237
+# 9: 19472
+# 10: 295384
+# 11: 2627153
+# 12: 826581
+# 13: 32331
+# 14: 173896
+# 15: 11844
+# 16: 17804
+# 17: 57538333

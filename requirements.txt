@@ -10,3 +10,4 @@ prettytable
 tensorboard
 numba
 einops
+shapely
