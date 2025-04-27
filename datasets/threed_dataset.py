@@ -6,11 +6,14 @@ import yaml
 from threed_front.room_datasets.rendering import render_polygons_to_canvas
 from threed_front.room_datasets.room_graph_dataset import (
     DatasetCollection,
+    Jitter,
+    PartialPatch,
     RoomClassEncoder,
     RoomConnectionEncoder,
     RoomGraphAugmentationBase,
     RoomPositionEncoder,
     RoomShapeEncoder,
+    RotationAugmentation,
 )
 from torch.utils.data import Dataset
 
@@ -87,6 +90,11 @@ class ThreeDFrontDataset(Dataset):
         self,
         directory,
         split,
+        augmentations=[],
+        min_size=(1.0, 1.0),
+        max_size=None,
+        patch_bound=None,
+        render_bound=None,
         voxelize_input=True,
         binary_counts=True,
         random_flips=False,
@@ -137,10 +145,46 @@ class ThreeDFrontDataset(Dataset):
         self.edges = RoomConnectionEncoder(raw_dataset)
 
         feat_encoders = [self.class_labels, self.positions, self.shapes, self.edges]
-        data_collection = DatasetCollection(*feat_encoders)
-        self.encoded_dataset = SamplePointCloud(data_collection, render_size=(256, 256))
+        dataset_collection = DatasetCollection(*feat_encoders)
 
-        print("3DFront Input properties: ", data_collection.feature_names)
+        # Apply augmentations
+        if isinstance(augmentations, str):
+            augmentations = [augmentations]
+
+        if "partial_patch" in augmentations:
+            assert (
+                augmentations[0] == "partial_patch"
+            ), "Partial patch must be the first augmentation"
+
+        for aug_type in augmentations:
+            if aug_type == "rotation":
+                dataset_collection = RotationAugmentation(
+                    dataset_collection, fixed=False
+                )
+                print("Applying rotation augmentations")
+            elif aug_type == "fixed_rotation":
+                dataset_collection = RotationAugmentation(
+                    dataset_collection, fixed=True
+                )
+                print("Applying fixed rotation augmentations")
+            elif aug_type == "jitter":
+                dataset_collection = Jitter(dataset_collection, dist=0.5)
+                print("Applying jittering augmentations to room positions")
+            elif aug_type == "partial_patch":
+                dataset_collection = PartialPatch(
+                    dataset_collection,
+                    patch_bound=patch_bound,
+                    min_size=min_size,
+                    max_size=max_size,
+                )
+                print("Applying partial patch augmentations")
+            else:
+                raise RuntimeError(f"Unknown augmentation type: {aug_type}")
+
+        self.encoded_dataset = SamplePointCloud(
+            dataset_collection, render_size=(256, 256), render_bound=render_bound
+        )
+
         print("Total # data: ", len(self.encoded_dataset))
 
         self._grid_size = [256, 256, 1]
