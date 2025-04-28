@@ -213,7 +213,7 @@ class Experiment(object):
             loss_sum += loss.detach().cpu().item() * len(output)
             loss_count += len(output)
             print(
-                "Training. Epoch: {}/{}, Datapoint: {}/{}, Bits/dim: {:.3f}".format(
+                "Training. Epoch: {}/{}, Datapoint: {}/{}, Bits/dim: {:.5f}".format(
                     epoch + 1,
                     self.args.epochs,
                     loss_count,
