@@ -98,9 +98,8 @@ def get_data(args):
 
     elif args.dataset == "3dfront":
         args.num_classes = 18
-        augmentations = []
-        if args.mode == "l_vae":
-            augmentations = ["partial_patch", "fixed_rotation", "jitter"]
+
+        augmentations = ["partial_patch", "fixed_rotation"]
 
         binary_counts = True
 
