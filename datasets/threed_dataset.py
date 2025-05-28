@@ -80,6 +80,35 @@ class SamplePointCloud(RoomGraphAugmentationBase):
                 "map_img": img,  # [H x W], np.uint8
             }
         )
+
+        # compute original position shifted point clouds if original data is available
+        if all(
+            [
+                k + "_orig" in sample_params
+                for k in ["class_labels", "positions", "shapes"]
+            ]
+        ):
+            # if original data is available, return the original data
+            class_indices = sample_params["class_labels_orig"].argmax(axis=1)
+            positions = sample_params["positions_orig"]
+            shapes = sample_params["shapes_orig"]
+            point_clouds = (
+                shapes.reshape(shapes.shape[0], -1, 2)
+                + positions.reshape(positions.shape[0], 1, 3)[:, :, [0, 2]]
+            )
+            img = np.full(
+                self.render_size, len(self._dataset.room_types), dtype=np.uint8
+            )
+            img = render_polygons_to_canvas(
+                point_clouds, pos2d_min, pos2d_max, img, class_indices.tolist()
+            )
+            sample_params.update(
+                {
+                    "point_clouds_orig": point_clouds,
+                    "map_img_orig": img,
+                }
+            )
+
         return sample_params
 
 
@@ -91,9 +120,9 @@ class ThreeDFrontDataset(Dataset):
         directory,
         split,
         augmentations=[],
-        min_size=(1.0, 1.0),
-        max_size=None,
-        patch_bound=None,
+        min_size=(2.0, 2.0),
+        max_size=(20.0, 20.0),
+        patch_bound=((-12.0, -12.0), (12.0, 12.0)),
         render_bound=None,
         voxelize_input=True,
         binary_counts=True,
@@ -215,14 +244,60 @@ class ThreeDFrontDataset(Dataset):
         # [256 x 256] np.uint8 labeled point cloud map
         output = encoded_data["map_img"][..., np.newaxis]
 
-        if self.random_flips:
-            if np.random.randint(2):
-                output = np.flip(output, axis=0)  # vertical flip
-            if np.random.randint(2):
-                output = np.flip(output, axis=1)  # horizontal flip
+        # if self.random_flips:
+        #     if np.random.randint(2):
+        #         output = np.flip(output, axis=0)  # vertical flip
+        #     if np.random.randint(2):
+        #         output = np.flip(output, axis=1)  # horizontal flip
 
         mask = (output != EMPTY_CLASS_NUM).astype(np.float32)
         voxel_input = mask.copy()
         voxel_input = np.stack([mask] * self._num_frames, axis=0)
         counts = mask.copy()
         return voxel_input, output, counts
+
+
+if __name__ == "__main__":
+    import cv2
+    import matplotlib.pyplot as plt
+
+    # NOTE(hlim): Jitter should not be used
+    augmentations = ["partial_patch", "fixed_rotation"]
+    binary_counts = True
+
+    train_ds = ThreeDFrontDataset(
+        directory="../ThreedFront/data/room_graphs_compact/",
+        split="train",
+        augmentations=augmentations,
+        random_flips=True,
+        binary_counts=binary_counts,
+    )
+
+    encoded_data = train_ds.encoded_dataset[10]
+    print(encoded_data.keys())
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+
+    # partial image
+    ax1.imshow(
+        cv2.flip(encoded_data["map_img"], 0), cmap="gray", interpolation="nearest"
+    )
+    ax1.set_title("Partial View")
+    ax1.axis("off")
+
+    # original image
+    if "map_img_orig" in encoded_data:
+        ax2.imshow(
+            cv2.flip(encoded_data["map_img_orig"], 0),
+            cmap="gray",
+            interpolation="nearest",
+        )
+        ax2.set_title("Original View")
+        ax2.axis("off")
+    else:
+        print("`map_img_orig` does not exist")
+        ax2.set_visible(False)
+
+    print("NumPy array shape:", encoded_data["map_img"].shape)
+    plt.tight_layout()
+    plt.show()
