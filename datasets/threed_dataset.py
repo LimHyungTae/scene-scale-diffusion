@@ -237,7 +237,8 @@ class ThreeDFrontDataset(Dataset):
         voxel_batch = [bi[0] for bi in data]
         output_batch = [bi[1] for bi in data]
         counts_batch = [bi[2] for bi in data]
-        return voxel_batch, output_batch, counts_batch
+        output_orig_batch = [bi[3] for bi in data]
+        return voxel_batch, output_batch, counts_batch, output_orig_batch
 
     def __getitem__(self, idx):
         encoded_data = self.encoded_dataset[idx]
@@ -254,7 +255,13 @@ class ThreeDFrontDataset(Dataset):
         voxel_input = mask.copy()
         voxel_input = np.stack([mask] * self._num_frames, axis=0)
         counts = mask.copy()
-        return voxel_input, output, counts
+
+        if "map_img_orig" in encoded_data:
+            output_orig = encoded_data["map_img_orig"][..., np.newaxis]
+        else:
+            output_orig = None
+
+        return voxel_input, output, counts, output_orig
 
 
 if __name__ == "__main__":
