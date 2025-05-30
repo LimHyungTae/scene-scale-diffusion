@@ -145,6 +145,7 @@ class ThreeDFrontDataset(Dataset):
         self.LABELS_REMAP = np.asarray(list(LABELS_REMAP.values()))
         self.frequencies_cartesian = np.asarray(list(FREQUENCIES.values()))
         self.remap_frequencies_cartesian = np.asarray(list(REMAP_FREQUENCIES.values()))
+        self.remap_colormap = threed_config["color_map"].values()
 
         self.data_shape = [256, 256, 1]
 
