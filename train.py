@@ -186,16 +186,18 @@ class Experiment(object):
         if self.args.distribution:
             self.train_sampler.set_epoch(epoch)
 
-        for voxel_input, output, counts in self.train_loader:
+        # NOTE(hlim): Now, only 3DFront pipeline works
+        for voxel_input, output, _, output_orig in self.train_loader:
             self.optimizer.zero_grad()
             voxel_input = (
                 torch.from_numpy(np.asarray(voxel_input)).long().squeeze(1).cuda()
-            )  # (4,1,256,256,32)
+            )  # (4, 1, 256, 256, 32)
             output = torch.from_numpy(np.asarray(output)).long().cuda()
+            output_orig = torch.from_numpy(np.asarray(output_orig)).long().cuda()
             if self.args.distribution:
-                loss = self.model.module(output, voxel_input)
+                loss = self.model.module(output, voxel_input, output_orig)
             else:
-                loss = self.model(output, voxel_input)
+                loss = self.model(output, voxel_input, output_orig)
             loss.backward()
 
             if self.args.clip_value:
@@ -213,7 +215,7 @@ class Experiment(object):
             loss_sum += loss.detach().cpu().item() * len(output)
             loss_count += len(output)
             print(
-                "Training. Epoch: {}/{}, Datapoint: {}/{}, Bits/dim: {:.3f}".format(
+                "Training. Epoch: {}/{}, Datapoint: {}/{}, Bits/dim: {:.5f}".format(
                     epoch + 1,
                     self.args.epochs,
                     loss_count,
@@ -233,15 +235,16 @@ class Experiment(object):
         with torch.no_grad():
             loss_sum = 0.0
             loss_count = 0
-            for voxel_input, output, counts in self.eval_loader:
+            for voxel_input, output, counts, output_orig in self.eval_loader:
                 voxel_input = (
                     torch.from_numpy(np.asarray(voxel_input)).long().squeeze(1).cuda()
                 )  # (4,1,256,256,32)
                 output = torch.from_numpy(np.asarray(output)).long().cuda()
+                output_orig = torch.from_numpy(np.asarray(output_orig)).long().cuda()
                 if self.args.distribution:
-                    loss = self.model.module(output, voxel_input)
+                    loss = self.model.module(output, voxel_input, output_orig)
                 else:
-                    loss = self.model(output, voxel_input)
+                    loss = self.model(output, voxel_input, output_orig)
                 loss_sum += loss.detach().cpu().item() * len(output)
                 loss_count += len(output)
                 print(
@@ -284,7 +287,9 @@ class Experiment(object):
                 dataloader = self.test_loader
             else:
                 dataloader = self.eval_loader
-            for iterate, (voxel_input, output, counts) in enumerate(dataloader):
+            for iterate, (voxel_input, output, counts, output_orig) in enumerate(
+                dataloader
+            ):
                 if len(voxel_input) == self.args.batch_size:
                     voxel_input = (
                         torch.from_numpy(np.asarray(voxel_input))
@@ -294,6 +299,7 @@ class Experiment(object):
                     )  # (4,1,256,256,32)
                     output = torch.from_numpy(np.asarray(output)).long().cuda()
                     invalid = torch.from_numpy(np.asarray(counts)).cuda()
+                    output_orig = torch.from_numpy(np.asarray(output_orig)).cuda()
 
                     if self.args.mode == "l_vae":
                         if self.args.distribution:

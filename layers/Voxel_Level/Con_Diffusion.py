@@ -151,6 +151,7 @@ class Con_Diffusion(torch.nn.Module):
 
         return log_probs
 
+    # Eq. (1)
     def q_pred(self, log_x_start, t):
         log_cumprod_alpha_t = extract(self.log_cumprod_alpha, t, log_x_start.shape)
         log_1_min_cumprod_alpha = extract(
@@ -196,7 +197,9 @@ class Con_Diffusion(torch.nn.Module):
         return log_EV_xtmin_given_xt_given_xstart
 
     def p_pred(self, log_x, t, cond):
+        # `log_x0_recon` = p(tilde_x0 | x_t, s)
         log_x0_recon = self.predict_start(log_x, t, cond)
+        # `log_model_pred` = q(x_{t-1} | x_t, x0)
         log_model_pred = self.q_posterior(log_x_start=log_x0_recon, log_x_t=log_x, t=t)
         return log_model_pred, log_x0_recon
 
@@ -246,17 +249,19 @@ class Con_Diffusion(torch.nn.Module):
         else:
             raise ValueError
 
-    def forward(self, x, voxel_input):
+    def forward(self, x, voxel_input, x_orig):
         b, device = x.size(0), x.device
         self.shape = x.size()[1:]
         t, pt = self.sample_time(b, device, "importance")
 
-        log_x_start = index_to_log_onehot(x, self.num_classes)
+        log_x_start = index_to_log_onehot(x_orig, self.num_classes)
         log_x_t = self.q_sample(
             log_x_start, t
         )  # log_x_t : (batch, #class, 128, 128, 8)
 
+        # `log_true_prob` = q(x_{t-1} | x_t, x0) in (4)
         log_true_prob = self.q_posterior(log_x_start=log_x_start, log_x_t=log_x_t, t=t)
+        # `log_model_prob` = p(x_{t-1} | x_t)
         log_model_prob, log_x0_recon = self.p_pred(log_x=log_x_t, t=t, cond=voxel_input)
 
         kl = self.multinomial_kl(log_true_prob, log_model_prob)
@@ -280,12 +285,13 @@ class Con_Diffusion(torch.nn.Module):
         # Upweigh loss term of the kl
         loss = kl_loss / pt + kl_prior
 
+        # D_KL(q(x0) ‖ p(tilde_x0)) in (4)
         kl_aux = self.multinomial_kl(
             log_x_start[:, :-1, :, :, :], log_x0_recon[:, :-1, :, :, :]
         )
         kl_aux = sum_except_batch(kl_aux)
         if self.recon_loss:
-            kl_aux += self.multi_criterion(log_x0_recon.exp(), x)
+            kl_aux += self.multi_criterion(log_x0_recon.exp(), x_orig)
             # kl_aux += lovasz_softmax(torch.nn.functional.softmax(log_x0_recon.exp(), dim=1), x)
 
         kl_aux_loss = mask * decoder_nll + (1.0 - mask) * kl_aux

@@ -99,22 +99,27 @@ def get_data(args):
     elif args.dataset == "3dfront":
         args.num_classes = 18
 
+        augmentations = ["partial_patch", "fixed_rotation"]
+
         binary_counts = True
 
         train_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="train",
+            augmentations=augmentations,
             random_flips=True,
             binary_counts=binary_counts,
         )
         val_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="val",
+            augmentations=augmentations,
             binary_counts=binary_counts,
         )
         test_ds = ThreeDFrontDataset(
             directory=args.dataset_dir,
             split="test",
+            augmentations=augmentations,
             binary_counts=binary_counts,
         )
 

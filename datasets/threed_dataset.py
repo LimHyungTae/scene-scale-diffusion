@@ -6,11 +6,14 @@ import yaml
 from threed_front.room_datasets.rendering import render_polygons_to_canvas
 from threed_front.room_datasets.room_graph_dataset import (
     DatasetCollection,
+    Jitter,
+    PartialPatch,
     RoomClassEncoder,
     RoomConnectionEncoder,
     RoomGraphAugmentationBase,
     RoomPositionEncoder,
     RoomShapeEncoder,
+    RotationAugmentation,
 )
 from torch.utils.data import Dataset
 
@@ -77,6 +80,35 @@ class SamplePointCloud(RoomGraphAugmentationBase):
                 "map_img": img,  # [H x W], np.uint8
             }
         )
+
+        # compute original position shifted point clouds if original data is available
+        if all(
+            [
+                k + "_orig" in sample_params
+                for k in ["class_labels", "positions", "shapes"]
+            ]
+        ):
+            # if original data is available, return the original data
+            class_indices = sample_params["class_labels_orig"].argmax(axis=1)
+            positions = sample_params["positions_orig"]
+            shapes = sample_params["shapes_orig"]
+            point_clouds = (
+                shapes.reshape(shapes.shape[0], -1, 2)
+                + positions.reshape(positions.shape[0], 1, 3)[:, :, [0, 2]]
+            )
+            img = np.full(
+                self.render_size, len(self._dataset.room_types), dtype=np.uint8
+            )
+            img = render_polygons_to_canvas(
+                point_clouds, pos2d_min, pos2d_max, img, class_indices.tolist()
+            )
+            sample_params.update(
+                {
+                    "point_clouds_orig": point_clouds,
+                    "map_img_orig": img,
+                }
+            )
+
         return sample_params
 
 
@@ -87,6 +119,11 @@ class ThreeDFrontDataset(Dataset):
         self,
         directory,
         split,
+        augmentations=[],
+        min_size=(2.0, 2.0),
+        max_size=(20.0, 20.0),
+        patch_bound=((-12.0, -12.0), (12.0, 12.0)),
+        render_bound=None,
         voxelize_input=True,
         binary_counts=True,
         random_flips=False,
@@ -108,6 +145,7 @@ class ThreeDFrontDataset(Dataset):
         self.LABELS_REMAP = np.asarray(list(LABELS_REMAP.values()))
         self.frequencies_cartesian = np.asarray(list(FREQUENCIES.values()))
         self.remap_frequencies_cartesian = np.asarray(list(REMAP_FREQUENCIES.values()))
+        self.remap_colormap = threed_config["color_map"].values()
 
         self.data_shape = [256, 256, 1]
 
@@ -137,10 +175,46 @@ class ThreeDFrontDataset(Dataset):
         self.edges = RoomConnectionEncoder(raw_dataset)
 
         feat_encoders = [self.class_labels, self.positions, self.shapes, self.edges]
-        data_collection = DatasetCollection(*feat_encoders)
-        self.encoded_dataset = SamplePointCloud(data_collection, render_size=(256, 256))
+        dataset_collection = DatasetCollection(*feat_encoders)
 
-        print("3DFront Input properties: ", data_collection.feature_names)
+        # Apply augmentations
+        if isinstance(augmentations, str):
+            augmentations = [augmentations]
+
+        if "partial_patch" in augmentations:
+            assert (
+                augmentations[0] == "partial_patch"
+            ), "Partial patch must be the first augmentation"
+
+        for aug_type in augmentations:
+            if aug_type == "rotation":
+                dataset_collection = RotationAugmentation(
+                    dataset_collection, fixed=False
+                )
+                print("Applying rotation augmentations")
+            elif aug_type == "fixed_rotation":
+                dataset_collection = RotationAugmentation(
+                    dataset_collection, fixed=True
+                )
+                print("Applying fixed rotation augmentations")
+            elif aug_type == "jitter":
+                dataset_collection = Jitter(dataset_collection, dist=0.5)
+                print("Applying jittering augmentations to room positions")
+            elif aug_type == "partial_patch":
+                dataset_collection = PartialPatch(
+                    dataset_collection,
+                    patch_bound=patch_bound,
+                    min_size=min_size,
+                    max_size=max_size,
+                )
+                print("Applying partial patch augmentations")
+            else:
+                raise RuntimeError(f"Unknown augmentation type: {aug_type}")
+
+        self.encoded_dataset = SamplePointCloud(
+            dataset_collection, render_size=(256, 256), render_bound=render_bound
+        )
+
         print("Total # data: ", len(self.encoded_dataset))
 
         self._grid_size = [256, 256, 1]
@@ -164,21 +238,74 @@ class ThreeDFrontDataset(Dataset):
         voxel_batch = [bi[0] for bi in data]
         output_batch = [bi[1] for bi in data]
         counts_batch = [bi[2] for bi in data]
-        return voxel_batch, output_batch, counts_batch
+        output_orig_batch = [bi[3] for bi in data]
+        return voxel_batch, output_batch, counts_batch, output_orig_batch
 
     def __getitem__(self, idx):
         encoded_data = self.encoded_dataset[idx]
         # [256 x 256] np.uint8 labeled point cloud map
         output = encoded_data["map_img"][..., np.newaxis]
 
-        if self.random_flips:
-            if np.random.randint(2):
-                output = np.flip(output, axis=0)  # vertical flip
-            if np.random.randint(2):
-                output = np.flip(output, axis=1)  # horizontal flip
+        # if self.random_flips:
+        #     if np.random.randint(2):
+        #         output = np.flip(output, axis=0)  # vertical flip
+        #     if np.random.randint(2):
+        #         output = np.flip(output, axis=1)  # horizontal flip
 
         mask = (output != EMPTY_CLASS_NUM).astype(np.float32)
         voxel_input = mask.copy()
         voxel_input = np.stack([mask] * self._num_frames, axis=0)
         counts = mask.copy()
-        return voxel_input, output, counts
+
+        if "map_img_orig" in encoded_data:
+            output_orig = encoded_data["map_img_orig"][..., np.newaxis]
+        else:
+            output_orig = None
+
+        return voxel_input, output, counts, output_orig
+
+
+if __name__ == "__main__":
+    import cv2
+    import matplotlib.pyplot as plt
+
+    # NOTE(hlim): Jitter should not be used
+    augmentations = ["partial_patch", "fixed_rotation"]
+    binary_counts = True
+
+    train_ds = ThreeDFrontDataset(
+        directory="../ThreedFront/data/room_graphs_compact/",
+        split="train",
+        augmentations=augmentations,
+        random_flips=True,
+        binary_counts=binary_counts,
+    )
+
+    encoded_data = train_ds.encoded_dataset[10]
+    print(encoded_data.keys())
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+
+    # partial image
+    ax1.imshow(
+        cv2.flip(encoded_data["map_img"], 0), cmap="gray", interpolation="nearest"
+    )
+    ax1.set_title("Partial View")
+    ax1.axis("off")
+
+    # original image
+    if "map_img_orig" in encoded_data:
+        ax2.imshow(
+            cv2.flip(encoded_data["map_img_orig"], 0),
+            cmap="gray",
+            interpolation="nearest",
+        )
+        ax2.set_title("Original View")
+        ax2.axis("off")
+    else:
+        print("`map_img_orig` does not exist")
+        ax2.set_visible(False)
+
+    print("NumPy array shape:", encoded_data["map_img"].shape)
+    plt.tight_layout()
+    plt.show()
