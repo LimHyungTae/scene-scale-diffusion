@@ -116,7 +116,6 @@ def generate_layouts(
                 layout_list.append(recon[j].cpu().numpy())
         else:
             layout_list.append(recon.cpu().numpy())
-        break
     return sampled_indices, layout_list
 
 
