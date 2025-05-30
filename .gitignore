@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+test_sampled/*
+parsed/*
 *result*/
 # C extensions
 *.so
@@ -56,4 +58,3 @@ Thumbs.db
 # dotenv / secrets
 .env
 .env.*
-
