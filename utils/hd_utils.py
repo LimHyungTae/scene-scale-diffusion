@@ -294,12 +294,13 @@ def get_encoded_dataset_for_ssc(
                 max_size=sampling_kwargs.get("max_size", None),
                 sampled_patches=sampling_kwargs.get("sampled_patches", None),
             )
-            print("Applying partial patch augmentations")
+            print("\033[1;32mApplying partial patch augmentations\033[0m")
         else:
             raise ValueError(f"Unknown augmentation type: {aug_type}")
 
     # NOTE(hlim): Unlike Siyi's hierarchical graph prediction,
     # SSC uses 256 x 256 x 1 image format as an input
+
     dataset_collection = SamplePointCloud(
         dataset_collection, render_size=(256, 256), render_bound=[-12.0, 12.0]
     )

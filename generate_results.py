@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import pickle
 import sys
@@ -116,6 +117,7 @@ def main(argv):
         sampled_patches_path = "test_sampled/partial_patches.npy"
         if os.path.exists(sampled_patches_path):
             sampled_patches = np.load(sampled_patches_path)
+            print("\033[1;32mSampled patches found.\033[0m")
         else:
             sampled_patches = None
             input(
@@ -144,7 +146,12 @@ def main(argv):
 
     # room label to color mapping
     # It should be tuple!
-    room_class_to_color = [tuple(map(int, color)) for color in train_ds.remap_colormap]
+    room_list = raw_train_dataset.room_types
+    color_map_path = "../ThreedFront/data/color_map.json"
+    room_colors_dict = json.load(open(color_map_path, "r"))
+    room_class_to_color = [
+        np.array(room_colors_dict[room_class]) * 255 for room_class in room_list
+    ]
 
     class_frequencies = train_ds.remap_frequencies_cartesian
     comp_weights = get_class_weights(class_frequencies).to(torch.float32)
