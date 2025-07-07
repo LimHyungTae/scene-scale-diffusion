@@ -99,6 +99,8 @@ class Con_Diffusion(torch.nn.Module):
             )
         elif args.dataset == "3dfront":
             self._denoise_fn = Denoise(args=self.args, num_class=self.num_classes)
+        elif args.dataset == "mp3d":
+            self._denoise_fn = Denoise(args=self.args, num_class=self.num_classes)
         else:
             raise NotImplementedError("Unsupported dataset has come.")
 
