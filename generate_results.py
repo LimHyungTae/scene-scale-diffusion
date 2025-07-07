@@ -9,8 +9,6 @@ import torch
 from threed_front.room_evaluation import ThreedFrontRoomResults
 from tqdm import tqdm
 
-from datasets.data import get_class_weights
-from datasets.threed_dataset import ThreeDFrontDataset
 from layers.Voxel_Level.Con_Diffusion import Con_Diffusion
 from layers.Voxel_Level.Gen_Diffusion import Diffusion
 from utils.hd_utils import (
@@ -20,6 +18,13 @@ from utils.hd_utils import (
     label_img_to_point_clouds,
     set_random_seed,
 )
+
+"""
+# For 3DFront
+> python3 generate_results.py con result_cond_diffusion_3dfront_tmp/epoch1299.tar --dataset_dir ../ThreedFront/data/room_graphs_compact/  --output_directory parsed
+# For MP3D
+> python3 generate_results.py con result_cond_diffusion_3dfront_tmp/epoch1299.tar --dataset_dir ../ThreedFront/data/mp3d_repartitioned_dataset/ --dataset mp3d  --output_directory parsed_mp3d --experiment "spark_dsg"
+"""
 
 
 def main(argv):
@@ -37,7 +42,7 @@ def main(argv):
         "--dataset_dir", type=str, required=True, help="Path to the dataset directory"
     )
     parser.add_argument(
-        "--dataset", type=str, default="3dfront", choices=["carla", "3dfront"]
+        "--dataset", type=str, default="3dfront", choices=["carla", "3dfront", "mp3d"]
     )
     parser.add_argument(
         "--output_directory",
@@ -56,10 +61,7 @@ def main(argv):
     parser.add_argument(
         "--experiment",
         default="partial_patch",
-        choices=[
-            "unconditioned",
-            "partial_patch",
-        ],
+        choices=["unconditioned", "partial_patch", "spark_dsg"],
         help="Experiment name",
     )
     parser.add_argument(
@@ -100,9 +102,19 @@ def main(argv):
     # diffusion net
     args.num_classes = 18
     augmentations = ["partial_patch"]
-    binary_counts = True
 
-    pickled_dataset_path = os.path.join(args.dataset_dir, "room_graph_dataset.pkl")
+    # `config` will be used as a flag to check `is_dsg_input`
+    config = {}
+    if args.dataset == "3dfront":
+        pickled_dataset_path = os.path.join(args.dataset_dir, "room_graph_dataset.pkl")
+    elif args.dataset == "mp3d":
+        pickled_dataset_path = os.path.join(args.dataset_dir, "spark_dsg_dataset.pkl")
+        config["data"] = {}
+        config["data"]["dsg_dataset_path"] = os.path.realpath(pickled_dataset_path)
+    else:
+        raise NotImplementedError("Not implemented!")
+    print("\033[1;31m", args.dataset, "\033[0m")
+    print("\033[1;32m", pickled_dataset_path, "\033[0m")
 
     raw_data = pickle.load(open(pickled_dataset_path, "rb"))
     raw_train_dataset, raw_test_dataset = (
@@ -126,9 +138,17 @@ def main(argv):
             )
         sampling_kwargs = {
             "patch_bound": ((-12.0, -12.0), (12.0, 12.0)),
-            "min_size": (2.0, 2.0),
+            # "min_size": (2.0, 2.0),
             "sampled_patches": sampled_patches,
         }
+    elif args.experiment == "spark_dsg":
+        augmentations = ["partial_patch"]
+        full_patch = np.array([[-12, -12], [12, 12]], dtype=np.float32)
+        sampling_kwargs = {
+            "patch_bound": ((-12.0, -12.0), (12.0, 12.0)),
+            "sampled_patches": [full_patch] * len(raw_test_dataset),
+        }
+
     encoded_test_dataset = get_encoded_dataset_for_ssc(
         raw_test_dataset, augmentations=augmentations, **sampling_kwargs
     )
@@ -136,16 +156,8 @@ def main(argv):
     ############################################################
     # Load model
     ############################################################
-    train_ds = ThreeDFrontDataset(
-        directory=args.dataset_dir,
-        split="train",
-        augmentations=augmentations,
-        random_flips=False,
-        binary_counts=binary_counts,
-    )
-
-    # room label to color mapping
-    # It should be tuple!
+    # # room label to color mapping
+    # # It should be tuple!
     room_list = raw_train_dataset.room_types
     color_map_path = "../ThreedFront/data/color_map.json"
     room_colors_dict = json.load(open(color_map_path, "r"))
@@ -153,8 +165,11 @@ def main(argv):
         np.array(room_colors_dict[room_class]) * 255 for room_class in room_list
     ]
 
-    class_frequencies = train_ds.remap_frequencies_cartesian
-    comp_weights = get_class_weights(class_frequencies).to(torch.float32)
+    # class_frequencies = train_ds.remap_frequencies_cartesian
+    # comp_weights = get_class_weights(class_frequencies).to(torch.float32)
+
+    comp_weights = torch.ones(18, dtype=torch.float32)
+    comp_weights = comp_weights / comp_weights.sum()
     completion_criterion = torch.nn.CrossEntropyLoss(weight=comp_weights)
 
     if args.mode == "gen":
@@ -172,18 +187,26 @@ def main(argv):
     ############################################################
     # Main loop
     ############################################################
+    sampling_rule = "uniform"
+
+    if args.dataset == "mp3d":
+        test_index_path = os.path.join(args.dataset_dir, "test_sample_indices.txt")
+        with open(test_index_path, "r") as f:
+            sampled_indices = [int(line.strip()) for line in f.readlines()]
+        print(f"Loaded {len(sampled_indices)} test indices from MP3D.")
+        args.num_samples = len(sampled_indices)
+
     sampled_indices, layout_list = generate_layouts(
         network,
         encoded_test_dataset,
         args.num_samples,
-        "uniform",
+        sampling_rule=sampling_rule,
         experiment=args.experiment,
         batch_size=args.batch_size,
         device=device,
     )
 
     # post-process
-    config = {}
     results = ThreedFrontRoomResults(raw_train_dataset, raw_test_dataset, config)
     print(f"result render_size: {results.render_size}")
     print(f"result render_bound: {results.render_bound}")
