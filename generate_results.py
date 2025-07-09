@@ -9,6 +9,7 @@ import torch
 from threed_front.room_evaluation import ThreedFrontRoomResults
 from tqdm import tqdm
 
+from datasets.threed_dataset import EMPTY_CLASS_NUM
 from layers.Voxel_Level.Con_Diffusion import Con_Diffusion
 from layers.Voxel_Level.Gen_Diffusion import Diffusion
 from utils.hd_utils import (
@@ -19,11 +20,36 @@ from utils.hd_utils import (
     set_random_seed,
 )
 
+
+def update_voxel_labels_from_partial(voxel_label_img, partial_label_img):
+    H, W, _ = voxel_label_img.shape
+    updated_labels = np.copy(voxel_label_img)
+
+    # Ensure image is same shape
+    if partial_label_img.shape[:2] != (H, W):
+        raise ValueError(
+            "partial_image and voxel_label_img must have the same spatial dimensions"
+        )
+
+    unique_labels = np.unique(partial_label_img)
+    print("\033[1;32m", unique_labels, "\033[1;0m")
+    for label in np.unique(partial_label_img):
+        if label == EMPTY_CLASS_NUM:
+            continue
+        mask = partial_label_img == label
+        print(f"Label {label}: {np.count_nonzero(mask)} pixels")
+        updated_labels[mask, 0] = label
+
+    return updated_labels
+
+
 """
 # For 3DFront
 > python3 generate_results.py con result_cond_diffusion_3dfront_tmp/epoch1299.tar --dataset_dir ../ThreedFront/data/room_graphs_compact/  --output_directory parsed
 # For MP3D
 > python3 generate_results.py con result_cond_diffusion_3dfront_tmp/epoch1299.tar --dataset_dir ../ThreedFront/data/mp3d_repartitioned_dataset/ --dataset mp3d  --output_directory parsed_mp3d --experiment "spark_dsg"
+
+if you need overwriting, put `--overwrite_input`
 """
 
 
@@ -48,6 +74,11 @@ def main(argv):
         "--output_directory",
         default=None,
         help="Path to the output directory (default: RENDERED_DIR/<experiment_tag>)",
+    )
+    parser.add_argument(
+        "--overwrite_input",
+        action="store_true",
+        help="Overwrite the input labels with partial labels if specified.",
     )
     parser.add_argument("--recon_loss", default=False)
     parser.add_argument("--diffusion_steps", type=int, default=100)
@@ -105,11 +136,11 @@ def main(argv):
 
     # `config` will be used as a flag to check `is_dsg_input`
     config = {}
+    config["data"] = {}
     if args.dataset == "3dfront":
         pickled_dataset_path = os.path.join(args.dataset_dir, "room_graph_dataset.pkl")
     elif args.dataset == "mp3d":
         pickled_dataset_path = os.path.join(args.dataset_dir, "spark_dsg_dataset.pkl")
-        config["data"] = {}
         config["data"]["dsg_dataset_path"] = os.path.realpath(pickled_dataset_path)
     else:
         raise NotImplementedError("Not implemented!")
@@ -211,6 +242,12 @@ def main(argv):
     print(f"result render_size: {results.render_size}")
     print(f"result render_bound: {results.render_bound}")
     for i, voxel_label_img in enumerate(tqdm(layout_list)):
+        if args.overwrite_input:
+            # NOTE(hlim): It is only valid if `num_samples` == 1024
+            voxel_label_img = update_voxel_labels_from_partial(
+                voxel_label_img, encoded_test_dataset[i]["map_img"]
+            )
+
         result_i = label_img_to_point_clouds(voxel_label_img, -12.0, 12.0)
         if args.experiment == "unconditioned":
             results.add_result(result_i)  # no input from test dataset
