@@ -103,24 +103,32 @@ def get_data(args):
 
         binary_counts = True
 
+        # Configure max_size based on patch_size option
+        dataset_kwargs = {
+            "directory": args.dataset_dir,
+            "augmentations": augmentations,
+            "binary_counts": binary_counts,
+        }
+
+        if hasattr(args, "patch_size"):
+            if args.patch_size == "small":
+                dataset_kwargs["max_size"] = (10.0, 10.0)
+            elif args.patch_size == "large":
+                dataset_kwargs["max_size"] = (14.0, 14.0)
+            # For "original", use default max_size from ThreeDFrontDataset
+
         train_ds = ThreeDFrontDataset(
-            directory=args.dataset_dir,
             split="train",
-            augmentations=augmentations,
             random_flips=True,
-            binary_counts=binary_counts,
+            **dataset_kwargs,
         )
         val_ds = ThreeDFrontDataset(
-            directory=args.dataset_dir,
             split="val",
-            augmentations=augmentations,
-            binary_counts=binary_counts,
+            **dataset_kwargs,
         )
         test_ds = ThreeDFrontDataset(
-            directory=args.dataset_dir,
             split="test",
-            augmentations=augmentations,
-            binary_counts=binary_counts,
+            **dataset_kwargs,
         )
 
         class_frequencies = train_ds.remap_frequencies_cartesian

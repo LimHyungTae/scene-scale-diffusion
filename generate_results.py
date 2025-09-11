@@ -4,6 +4,7 @@ import os
 import pickle
 import sys
 
+import cv2
 import numpy as np
 import torch
 from threed_front.room_evaluation import ThreedFrontRoomResults
@@ -21,7 +22,7 @@ from utils.hd_utils import (
 )
 
 
-def update_voxel_labels_from_partial(voxel_label_img, partial_label_img):
+def update_voxel_labels_from_partial(voxel_label_img, partial_label_img, thr=15):
     H, W, _ = voxel_label_img.shape
     updated_labels = np.copy(voxel_label_img)
 
@@ -32,13 +33,36 @@ def update_voxel_labels_from_partial(voxel_label_img, partial_label_img):
         )
 
     unique_labels = np.unique(partial_label_img)
-    print("\033[1;32m", unique_labels, "\033[1;0m")
+    # print("\033[1;32m", unique_labels, "\033[1;0m")
     for label in np.unique(partial_label_img):
         if label == EMPTY_CLASS_NUM:
             continue
         mask = partial_label_img == label
-        print(f"Label {label}: {np.count_nonzero(mask)} pixels")
+        # print(f"Label {label}: {np.count_nonzero(mask)} pixels")
         updated_labels[mask, 0] = label
+
+    unique_labels = np.unique(updated_labels)
+    for label in unique_labels:
+        if label == EMPTY_CLASS_NUM:
+            continue
+
+        # Binary mask for current label
+        mask = (updated_labels == label).astype(np.uint8)
+
+        # Connected components analysis
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+            mask, connectivity=8
+        )
+
+        for j in range(1, num_labels):  # Skip background (label 0)
+            area = stats[j, cv2.CC_STAT_AREA]
+            if area >= thr:
+                # Keep region
+                updated_labels[labels == j, 0] = label
+            else:
+                # Remove small region
+                print("\033[1;33mSmall region has been rejected\033[0m")
+                updated_labels[labels == j, 0] = EMPTY_CLASS_NUM
 
     return updated_labels
 
@@ -94,6 +118,12 @@ def main(argv):
         default="partial_patch",
         choices=["unconditioned", "partial_patch", "spark_dsg"],
         help="Experiment name",
+    )
+    parser.add_argument(
+        "--patch_size",
+        default="original",
+        choices=["small", "original", "large"],
+        help="Patch size option: small, original, or large",
     )
     parser.add_argument(
         "--batch_size", default=8, type=int, help="Batch size for sampling (default: 8)"
@@ -157,21 +187,44 @@ def main(argv):
     sampling_kwargs = {}
     if args.experiment == "partial_patch":
         augmentations = ["partial_patch"]
-        sampled_patches_path = "test_sampled/partial_patches.npy"
+
+        # Determine sampled_patches_path based on patch_size option
+        if args.patch_size == "small":
+            sampled_patches_path = "test_sampled_small/partial_patches.npy"
+        elif args.patch_size == "large":
+            sampled_patches_path = "test_sampled_large/partial_patches.npy"
+        else:  # original
+            sampled_patches_path = "test_sampled/partial_patches.npy"
+
         if os.path.exists(sampled_patches_path):
             sampled_patches = np.load(sampled_patches_path)
-            print("\033[1;32mSampled patches found.\033[0m")
+            print(
+                f"\033[1\033[32mSampled patches found at {sampled_patches_path}.\033[0m"
+            )
         else:
             sampled_patches = None
             input(
-                "Patch file does not exist. "
+                f"Patch file {sampled_patches_path} does not exist. "
                 "Press any key to continue with random sampled patches."
             )
+
+        # Configure max_size based on patch_size option
+        if args.patch_size == "small":
+            max_size = (10.0, 10.0)
+        elif args.patch_size == "large":
+            max_size = (14.0, 14.0)
+        else:  # original - use default behavior (no max_size specified)
+            max_size = None
+
         sampling_kwargs = {
             "patch_bound": ((-12.0, -12.0), (12.0, 12.0)),
-            # "min_size": (2.0, 2.0),
+            "min_size": (2.0, 2.0),
             "sampled_patches": sampled_patches,
         }
+
+        # Add max_size only if it's specified (for small/large options)
+        if max_size is not None:
+            sampling_kwargs["max_size"] = max_size
     elif args.experiment == "spark_dsg":
         augmentations = ["partial_patch"]
         full_patch = np.array([[-12, -12], [12, 12]], dtype=np.float32)
@@ -226,6 +279,7 @@ def main(argv):
             sampled_indices = [int(line.strip()) for line in f.readlines()]
         print(f"Loaded {len(sampled_indices)} test indices from MP3D.")
         args.num_samples = len(sampled_indices)
+        sampling_rule = sampled_indices
 
     sampled_indices, layout_list = generate_layouts(
         network,
@@ -241,12 +295,49 @@ def main(argv):
     results = ThreedFrontRoomResults(raw_train_dataset, raw_test_dataset, config)
     print(f"result render_size: {results.render_size}")
     print(f"result render_bound: {results.render_bound}")
+
     for i, voxel_label_img in enumerate(tqdm(layout_list)):
+        #################################################
+        # if voxel_label_img.shape[-1] == 1:
+        #     label_img = voxel_label_img.squeeze(-1)
+        # else:
+        #     label_img = voxel_label_img
+
+        # # Normalize for colormap usage if needed (optional if labels already 0–17)
+        # label_img_uint8 = label_img.astype(np.uint8)
+
+        # # Apply OpenCV colormap (e.g., COLORMAP_JET or COLORMAP_HSV)
+        # color_img = cv2.applyColorMap(label_img_uint8 * (255 // 17), cv2.COLORMAP_HSV)
+        # tmp_image_path = os.path.join(output_dir, f"syn_{i}_before_overwriting.png")
+        # cv2.imwrite(tmp_image_path, color_img)
+        #################################################
         if args.overwrite_input:
             # NOTE(hlim): It is only valid if `num_samples` == 1024
-            voxel_label_img = update_voxel_labels_from_partial(
-                voxel_label_img, encoded_test_dataset[i]["map_img"]
-            )
+            if args.dataset == "3dfront":
+                voxel_label_img = update_voxel_labels_from_partial(
+                    voxel_label_img, encoded_test_dataset[i]["map_img"]
+                )
+            elif args.dataset == "mp3d":
+                voxel_label_img = update_voxel_labels_from_partial(
+                    voxel_label_img, encoded_test_dataset[sampled_indices[i]]["map_img"]
+                )
+            else:
+                raise NotImplementedError("Unsupported dataset name has come")
+
+        #################################################
+        # if voxel_label_img.shape[-1] == 1:
+        #     label_img = voxel_label_img.squeeze(-1)
+        # else:
+        #     label_img = voxel_label_img
+
+        # # Normalize for colormap usage if needed (optional if labels already 0–17)
+        # label_img_uint8 = label_img.astype(np.uint8)
+
+        # # Apply OpenCV colormap (e.g., COLORMAP_JET or COLORMAP_HSV)
+        # color_img = cv2.applyColorMap(label_img_uint8 * (255 // 17), cv2.COLORMAP_HSV)
+        # tmp_image_path = os.path.join(output_dir, f"syn_{i}_after_overwriting.png")
+        # cv2.imwrite(tmp_image_path, color_img)
+        #################################################
 
         result_i = label_img_to_point_clouds(voxel_label_img, -12.0, 12.0)
         if args.experiment == "unconditioned":
