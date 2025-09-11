@@ -29,6 +29,41 @@ python3 SSC_train.py --mode l_gen --vq_size 100 --l_size 16162 --init_size 32 --
 
 ---
 
+## For Siyi's baseline approach
+
+```
+python3 SSC_train.py --mode con --log_path ./result_cond_diffusion_3dfront_tmp \                                                                                                        INT  threedfront_py3.11 py
+--dataset_dir ../ThreedFront/data/room_graphs_compact/ --dataset 3dfront --epoch 2000 \
+--batch_size 8 --num_workers 0 --eval_every 100 --check_every 100 --completion_epoch 100
+```
+
+## To train large/small patches?
+
+In
+```
+  Training:
+  # Small patches
+  python SSC_train.py --dataset 3dfront --dataset_dir ... --patch_size small
+
+  # Large patches
+  python SSC_train.py --dataset 3dfront --dataset_dir ... --patch_size large
+
+  # Original behavior
+  python SSC_train.py --dataset 3dfront --dataset_dir ... --patch_size original
+
+  Testing:
+  # Small patches
+  python generate_results.py con model.tar --dataset_dir ... --patch_size small
+
+  # Large patches
+  python generate_results.py con model.tar --dataset_dir ... --patch_size large
+
+  # Original behavior
+  python generate_results.py con model.tar --dataset_dir ... --patch_size original
+```
+
+---
+
 <img src=https://user-images.githubusercontent.com/65997635/210452550-2c7c7c6d-7260-43ce-b4b6-18d3f15fccde.png width="480"
   height="400">
 
