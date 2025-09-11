@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 test_sampled/*
+test_sampled*/*
+to_siyi*/*
 parsed/*
 parsed*/*
 *result*/
