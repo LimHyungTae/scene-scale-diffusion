@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 import sys
+import time
 
 import cv2
 import numpy as np
@@ -126,7 +127,10 @@ def main(argv):
         help="Patch size option: small, original, or large",
     )
     parser.add_argument(
-        "--batch_size", default=8, type=int, help="Batch size for sampling (default: 8)"
+        "--batch_size",
+        default=16,
+        type=int,
+        help="Batch size for sampling (default: 8)",
     )
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument(
@@ -281,6 +285,10 @@ def main(argv):
         args.num_samples = len(sampled_indices)
         sampling_rule = sampled_indices
 
+    # GPU-synchronized time measurement for generate_layouts
+    torch.cuda.synchronize()  # Ensure all previous CUDA operations are complete
+    start_time = time.time()
+
     sampled_indices, layout_list = generate_layouts(
         network,
         encoded_test_dataset,
@@ -289,6 +297,17 @@ def main(argv):
         experiment=args.experiment,
         batch_size=args.batch_size,
         device=device,
+    )
+
+    torch.cuda.synchronize()  # Ensure all CUDA operations in generate_layouts are complete
+    end_time = time.time()
+    generation_time = end_time - start_time
+
+    green = "\033[1;32m"
+    reset = "\033[0m"
+    print(f"{green}Generation completed in {generation_time:.2f} seconds{reset}")
+    print(
+        f"{green}Time per sample: {generation_time / args.num_samples:.4f} seconds{reset}"
     )
 
     # post-process
